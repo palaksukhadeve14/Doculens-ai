@@ -118,10 +118,26 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         If the answer is not available in the PDF, clearly tell the user that the answer is not available in the PDF.
         PDF content :${Pdftext}
         User's question:${questions}`;
+
+        console.log("Sending the prompt to gemini...");
+        const response = await ai.interactions.create({
+            model: 'gemini-3.8-flash',
+            input: prompt
+        })
+        console.log("Gemini received the prompt..");
+        console.log("Answer:", response.output_text);
+
+        res.json({
+            question: questions,
+            answer: response.output_text
+        });
     } catch (error) {
-        console.log("Error message : ", error.message);
+        console.error("Gemini error:", error);
+        console.error("Error message:", error.message);
+
         return res.status(500).json({
-            error: "failed to process the pdf or generate an answer"
+            error: "Gemini request failed",
+            details: error.message
         });
     }
     finally {
