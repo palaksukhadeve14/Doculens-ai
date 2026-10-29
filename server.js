@@ -64,54 +64,60 @@ app.post('/api/ask', async (req, res) => {
 });
 
 app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
-    console.log("UPDATED PDF ROUTE - TEST 123");
-    console.log("PDF route reached");
+
+
     console.log("Request body:", req.body);
     console.log("Uploaded file:", req.file);
-   
+
     const questions = req.body?.question;
 
-    console.log("Question value and type:", questions, typeof questions);
-    
-console.log("CHECKPOINT 1: Before question validation");
-console.log("Question:", JSON.stringify(questions));
-console.log("Is valid string:", typeof question === 'string' && question.trim().length > 0);
+
+
+
+    console.log("Question:", JSON.stringify(questions));
+    console.log("Is valid string:", typeof question === 'string' && question.trim().length > 0);
     if (typeof questions !== 'string' || !questions.trim()) {
         return res.status(400).json({
             error: 'Please provide valid question'
         });
     }
-    console.log("CHECKPOINT 2: Question validation passed");
+
     if (!req.file) {
         return res.status(400).json({
             error: 'Please provide a valid PDF file'
         });
     }
-    console.log("CHECKPOINT 3: File validation passed");
+
     let parser;
     try {
         console.log("Starting PDF parser...");
 
-parser = new PDFParse({
-    data: req.file.buffer
-});
+        parser = new PDFParse({
+            data: req.file.buffer
+        });
 
-console.log("Parser created. Extracting text...");
+        console.log("Parser created. Extracting text...");
 
-const result = await parser.getText();
+        const result = await parser.getText();
 
-console.log("PDF parsing completed.");
+        console.log("PDF parsing completed.");
 
-const Pdftext = result.text.trim();
+        const Pdftext = result.text.trim();
 
-console.log("Extracted PDF text length:", Pdftext.length);
-console.log("Extracted PDF text preview:", Pdftext.slice(0, 500));
+        console.log("Extracted PDF text length:", Pdftext.length);
+        console.log("Extracted PDF text preview:", Pdftext.slice(0, 500));
 
         if (!Pdftext) {
             return res.status(400).json({
                 error: "No readable content was found in the PDF"
             })
         }
+        const prompt = `
+        Use the PDF content provided below to answer the user's question.
+        Treat the PDF as the reference source.
+        If the answer is not available in the PDF, clearly tell the user that the answer is not available in the PDF.
+        PDF content :${Pdftext}
+        User's question:${questions}`;
     } catch (error) {
         console.log("Error message : ", error.message);
         return res.status(500).json({
