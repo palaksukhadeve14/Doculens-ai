@@ -8,33 +8,44 @@ function App() {
   const [question, setquestion] = useState('')
   const [answer, setanswer] = useState('')
   const [loading, setloading] = useState(false);
-  const [error, seterror] = useState('')
+  const [error, seterror] = useState('');
+  const [selectedfile,setselectedfile]=useState(null);
 
   function handlequestionchange(event) {
     setquestion(event.target.value)
   }
 
-  
+  function handlefileSelect(file)
+  {
+    setselectedfile(file);
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!question.trim()) {
+      seterror("Please enter a question");
+      return;
+    }
+    if(!selectedfile)
+    {
+      seterror("Please select a PDF first");
       return;
     }
     console.log("Question Submitted: ", question);
+
+    const formdata = new FormData();
+    formdata.append('pdf',selectedfile);
+    formdata.append('question',question.trim());
+
     setloading(true);
     setanswer('');
     seterror('');
+    
     try {
-      const response = await fetch('http://localhost:3000/api/ask',
+      const response = await fetch('http://localhost:3000/api/ask-pdf',
         {
           method: 'POST',
-          headers: {
-            'Content-type': "application/json",
-          },
-          body: JSON.stringify({
-            question: question.trim()
-          })
+          body: formdata
         }
       )
       const data = await response.json();
@@ -57,7 +68,8 @@ function App() {
 
         <div className="mt-8 grid w-full grid-cols-1 gap-6">
 
-         <PdfUploader />
+         <PdfUploader selectedfile={selectedfile} 
+         onfileSelect={handlefileSelect} />
 
         <ChatPanel 
         question={question}

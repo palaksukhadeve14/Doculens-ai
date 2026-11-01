@@ -1,8 +1,8 @@
 import { useState,useEffect } from "react";
 
-function PdfUploader()
+  function PdfUploader({selectedfile,onfileSelect})
 {
-    const [selectedfile, setselectedfile] = useState(null);
+    
   const [pdfURL, setpdfURL] = useState('');
 
    useEffect(() => {
@@ -31,10 +31,10 @@ function PdfUploader()
     if (!ispdf) {
       alert('Please select a pdf file');
       event.target.value = '';
-      setselectedfile(null);
+      onfileSelect(null);
       return;
     }
-    setselectedfile(file);
+    onfileSelect(file);
   }
     return(
          <section className='min-w-0 rounded-xl w-full  bg-white p-5 shadow-sm'>
@@ -46,7 +46,7 @@ function PdfUploader()
             Choose a pdf
           </label>
           <input
-            id='"pdf-upload'
+            id='pdf-upload'
             type='file'
             accept=".pdf,application/pdf"
             onChange={handlefileselection}
