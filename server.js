@@ -65,18 +65,13 @@ app.post('/api/ask', async (req, res) => {
 
 app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
-    console.time('Total Processing Time');
-
     console.log("Request body:", req.body);
     console.log("Uploaded file:", req.file);
 
     const questions = req.body?.question;
 
-
-
-
     console.log("Question:", JSON.stringify(questions));
-    console.log("Is valid string:", typeof question === 'string' && question.trim().length > 0);
+    console.log("Is valid string:", typeof questions === 'string' && questions.trim().length > 0);
     if (typeof questions !== 'string' || !questions.trim()) {
         return res.status(400).json({
             error: 'Please provide valid question'
@@ -89,6 +84,8 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         });
     }
 
+    console.time('Total Processing Time');
+
     let parser;
     try {
         console.log("Starting PDF parser...");
@@ -99,18 +96,20 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
         console.log("Parser created. Extracting text...");
 
-        console.time('Pdf Extraction');
+        // console.time('Pdf Extraction');
         const result = await parser.getText();
-        console.timeEnd('Pdf Extraction');
+        // console.timeEnd('Pdf Extraction');
 
-        console.log("PDF parsing completed.");
+        // console.log("PDF parsing completed.");
 
-        const Pdftext = result.text.trim();
+        const rawText=result.text;
+        const cleanedText=rawText.trim().replace(/ {2,}/g," ").replace(/\n{3,}/g,"\n\n");
 
-        console.log("Extracted PDF text length:", Pdftext.length);
-        console.log("Extracted PDF text preview:", Pdftext.slice(0, 500));
+        console.log("Raw Text length: ",rawText);
+        console.log("Extracted PDF text length:", cleanedText.length);
+        console.log("Extracted PDF text preview:", cleanedText.slice(0, 500));
 
-        if (!Pdftext) {
+        if (!cleanedText) {
             return res.status(400).json({
                 error: "No readable content was found in the PDF"
             })
@@ -119,7 +118,7 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         Use the PDF content provided below to answer the user's question.
         Treat the PDF as the reference source.
         If the answer is not available in the PDF, clearly tell the user that the answer is not available in the PDF.
-        PDF content :${Pdftext}
+        PDF content :${cleanedText}
         User's question:${questions}`;
 
         console.log("Sending the prompt to gemini...");
