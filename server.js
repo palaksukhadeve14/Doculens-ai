@@ -102,10 +102,10 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
         // console.log("PDF parsing completed.");
 
-        const rawText=result.text;
-        const cleanedText=rawText.trim().replace(/ {2,}/g," ").replace(/\n{3,}/g,"\n\n");
+        const rawText = result.text;
+        const cleanedText = rawText.trim().replace(/ {2,}/g, " ").replace(/\n{3,}/g, "\n\n");
 
-        console.log("Raw Text length: ",rawText);
+        console.log("Raw Text length: ", rawText.length);
         console.log("Extracted PDF text length:", cleanedText.length);
         console.log("Extracted PDF text preview:", cleanedText.slice(0, 500));
 
@@ -114,6 +114,39 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
                 error: "No readable content was found in the PDF"
             })
         }
+
+
+
+        const chunksize = 500;
+        const overlap = 100;
+        function createChunks(text) {
+            const chunkarr = [];
+            let start = 0;
+            while (start < text.length) {
+                const end = start + chunksize;
+                const chunk = text.slice(start, end);
+                chunkarr.push(chunk);
+                const step = chunksize - overlap;
+                start += step;
+            }
+            return chunkarr;
+        }
+        const chunks = createChunks(cleanedText);
+
+        console.log("Total Chunks : ", chunks.length);
+        // console.log("First Chunk : ",chunks[0]);
+        // console.log("Second Chunk : ",chunks[1]);
+        // console.log("Third Chunk : ",chunks[3]);
+
+        console.log("first chunk length: ", chunks[0].length);
+        console.log("second chunk length: ", chunks[1].length);
+        console.log("Overlap verified : ", chunks[0].slice(-100) === chunks[1].slice(0, 100));
+
+        return res.json({
+            message: "PDF processing and chunking successful",
+            totalChunks: chunks.length
+        });
+
         const prompt = `
         Use the PDF content provided below to answer the user's question.
         Treat the PDF as the reference source.
