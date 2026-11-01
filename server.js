@@ -65,6 +65,7 @@ app.post('/api/ask', async (req, res) => {
 
 app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
+    console.time('Total Processing Time');
 
     console.log("Request body:", req.body);
     console.log("Uploaded file:", req.file);
@@ -98,7 +99,9 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
         console.log("Parser created. Extracting text...");
 
+        console.time('Pdf Extraction');
         const result = await parser.getText();
+        console.timeEnd('Pdf Extraction');
 
         console.log("PDF parsing completed.");
 
@@ -120,11 +123,18 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         User's question:${questions}`;
 
         console.log("Sending the prompt to gemini...");
-        const response = await ai.interactions.create({
-            model: 'gemini-3.8-flash',
-            input: prompt
-        })
+        console.time('Gemini Response');
+        let response;
+        try {
+            response = await ai.interactions.create({
+                model: 'gemini-3.8-flash',
+                input: prompt
+            })
+        } finally {
+            console.timeEnd('Gemini Response');
+        }
         console.log("Gemini received the prompt..");
+
         console.log("Answer:", response.output_text);
 
         res.json({
@@ -144,6 +154,7 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         if (parser) {
             await parser.destroy().catch(() => { });
         }
+        console.timeEnd('Total Processing Time');
     }
 
 })
