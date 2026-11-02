@@ -63,6 +63,20 @@ app.post('/api/ask', async (req, res) => {
     }
 });
 
+async function generateEmbeddings(chunks) {
+    const response = await ai.models.embedContent({
+        model: 'gemini-embedding-001',
+        contents: chunks,
+        config: {
+            taskType: 'RETRIEVAL_DOCUMENT'
+        }
+    });
+    const embeddings = response.embeddings.map(
+        item => item.values
+    );
+    return embeddings;
+}
+
 app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
     console.log("Request body:", req.body);
@@ -141,6 +155,18 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         console.log("first chunk length: ", chunks[0].length);
         console.log("second chunk length: ", chunks[1].length);
         console.log("Overlap verified : ", chunks[0].slice(-100) === chunks[1].slice(0, 100));
+
+
+        const embeddings = await generateEmbeddings(chunks);
+        console.log("Total Embeddings : ", embeddings.length);
+        console.log("Vector dimensions: ", embeddings[0].length);
+
+        return res.json({
+            message: "Embeddings generated successfully",
+            totalChunks: chunks.length,
+            totalEmbeddings: embeddings.length,
+            vectorDimensions: embeddings[0].length
+        });
 
         return res.json({
             message: "PDF processing and chunking successful",
