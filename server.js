@@ -2,38 +2,38 @@ require('dotenv').config();
 const cors = require("cors");
 const express = require('express');
 const multer = require('multer');
-const {QdrantClient}=require("@qdrant/js-client-rest");
-const crypto=require('node:crypto');
+const { QdrantClient } = require("@qdrant/js-client-rest");
+const crypto = require('node:crypto');
 const { PDFParse } = require('pdf-parse')
 const { GoogleGenAI } = require('@google/genai');
 const { text } = require('node:stream/consumers');
 const console = require('node:console');
+const { match } = require('node:assert');
 const app = express();
 const port = 3000;
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
-const qdrantClient=new QdrantClient({
-    host:'localhost',
-    port:6333
+const qdrantClient = new QdrantClient({
+    host: 'localhost',
+    port: 6333
 });
 async function initializeQdrant() {
-    const collectionName='pdf_chunks'
-    
-    const collections= await qdrantClient.getCollections();
-    const collectionExists=collections.collections.some(
-        collection=>collection.name===collectionName
+    const collectionName = 'pdf_chunks'
+
+    const collections = await qdrantClient.getCollections();
+    const collectionExists = collections.collections.some(
+        collection => collection.name === collectionName
     );
-    if(collectionExists)
-    {
+    if (collectionExists) {
         console.log("Qdrant Collection created successfully")
         return;
     }
-    await qdrantClient.createCollection(collectionName,{
-        vectors:{
-            size:3072,
-            distance:'Cosine'
+    await qdrantClient.createCollection(collectionName, {
+        vectors: {
+            size: 3072,
+            distance: 'Cosine'
         }
     });
 }
@@ -103,26 +103,59 @@ async function generateEmbeddings(chunks) {
     );
     return embeddings;
 }
-async function storeVectors(chunks,embeddings){
-    const collectionName='pdf_chunks';
-    const documentId=crypto.randomUUID();
-    const points=chunks.map((chunk,index)=>({
-        id:crypto.randomUUID(),
-        vector:embeddings[index],
-        payload:{
-            text:chunk,
-            documentId:documentId,
-            index:index
+async function storeVectors(chunks, embeddings) {
+    const collectionName = 'pdf_chunks';
+    const documentId = crypto.randomUUID();
+    const points = chunks.map((chunk, index) => ({
+        id: crypto.randomUUID(),
+        vector: embeddings[index],
+        payload: {
+            text: chunk,
+            documentId: documentId,
+            index: index
         }
     }));
-    await qdrantClient.upsert(collectionName,{
-        wait:true,
-        points:points
+    await qdrantClient.upsert(collectionName, {
+        wait: true,
+        points: points
     });
-    return{
-        documentId:documentId,
-        storedPoints:points.length
+    return {
+        documentId: documentId,
+        storedPoints: points.length
     };
+}
+async function generateQueryEmbeddings(question) {
+    const response = await ai.models.embedContent({
+        model: 'gemini-embedding-001',
+        contents: question,
+        config: {
+            taskType: 'RETRIEVAL_QUERY'
+        }
+    });
+    return response.embeddings[0].values;
+}
+async function retrieveRelevantQ(queryembeddings, documentId) {
+    const collectionName = 'pdf_chunks';
+    const results = await qdrantClient.query(collectionName, {
+        query: queryembeddings,
+        limit: 5,
+        with_payload: true,
+        filter: {
+            must: [
+                {
+                    key: 'documentId',
+                    match: {
+                        value: documentId
+                    }
+                }
+            ]
+        }
+    });
+    return results.points.map(result => ({
+        text: result.payload.text,
+        score: result.score,
+        chunkIndex: result.payload.index
+    }));
 }
 app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
@@ -177,7 +210,6 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         }
 
 
-
         const chunksize = 500;
         const overlap = 100;
         function createChunks(text) {
@@ -205,15 +237,21 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
 
         const embeddings = await generateEmbeddings(chunks);
-       
-        const storageresults= await storeVectors(chunks,embeddings);
+
+        const storageresults = await storeVectors(chunks, embeddings);
+
+        const queryembeddings = await generateQueryEmbeddings(questions);
+
+        const relevantchunks = await retrieveRelevantQ(queryembeddings, storageresults.documentId);
+
+        console.log("Retrieved chunks:", relevantchunks.length);
+        console.log("Relevant results:", relevantchunks);
         return res.json({
-            message:"Pdf chunks stored successfully",
-            totalChunks:chunks.length,
-            totalEmbeddings:embeddings.length,
-            vectorDimensions:embeddings[0].length,
-            documentId:storageresults.documentId,
-            TotalPoints:storageresults.storedPoints
+            message: "PDF retrieval successful",
+            documentId: storageresults.documentId,
+            totalChunks: chunks.length,
+            retrievedChunks: relevantchunks.length,
+            results: relevantchunks
         });
 
         const prompt = `
@@ -260,12 +298,12 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
 
 })
 
-initializeQdrant().then(()=>{
-    app.listen(port,()=>{
+initializeQdrant().then(() => {
+    app.listen(port, () => {
         console.log(`Example app listening on port ${port}`);
     });
 })
-.catch(error=>{
-    console.log("Failed to initialize Qdrant:",error);
-    process.exit(1);
-});
+    .catch(error => {
+        console.log("Failed to initialize Qdrant:", error);
+        process.exit(1);
+    });
