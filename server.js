@@ -6,9 +6,6 @@ const { QdrantClient } = require("@qdrant/js-client-rest");
 const crypto = require('node:crypto');
 const { PDFParse } = require('pdf-parse')
 const { GoogleGenAI } = require('@google/genai');
-const { text } = require('node:stream/consumers');
-const console = require('node:console');
-const { match } = require('node:assert');
 const app = express();
 const port = 3000;
 
@@ -89,7 +86,24 @@ app.post('/api/ask', async (req, res) => {
         });
     }
 });
+const chunksize = 500;
+const overlap = 100;
 
+function createChunks(text) {
+    const chunkarr = [];
+    let start = 0;
+
+    while (start < text.length) {
+        const end = start + chunksize;
+        const chunk = text.slice(start, end);
+        chunkarr.push(chunk);
+
+        const step = chunksize - overlap;
+        start += step;
+    }
+
+    return chunkarr;
+}
 async function generateEmbeddings(chunks) {
     const response = await ai.models.embedContent({
         model: 'gemini-embedding-001',
@@ -157,44 +171,22 @@ async function retrieveRelevantQ(queryembeddings, documentId) {
         chunkIndex: result.payload.index
     }));
 }
-app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
-
-    console.log("Request body:", req.body);
-    console.log("Uploaded file:", req.file);
-
-    const questions = req.body?.question;
-
-    console.log("Question:", JSON.stringify(questions));
-    console.log("Is valid string:", typeof questions === 'string' && questions.trim().length > 0);
-    if (typeof questions !== 'string' || !questions.trim()) {
-        return res.status(400).json({
-            error: 'Please provide valid question'
-        });
-    }
-
+app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({
             error: 'Please provide a valid PDF file'
         });
     }
-
-    console.time('Total Processing Time');
-
+    console.time("PDF Ingestion Time");
     let parser;
     try {
-        console.log("Starting PDF parser...");
-
+        console.log("PDF Ingestion Pipeline");
         parser = new PDFParse({
             data: req.file.buffer
         });
-
         console.log("Parser created. Extracting text...");
 
-        // console.time('Pdf Extraction');
         const result = await parser.getText();
-        // console.timeEnd('Pdf Extraction');
-
-        // console.log("PDF parsing completed.");
 
         const rawText = result.text;
         const cleanedText = rawText.trim().replace(/ {2,}/g, " ").replace(/\n{3,}/g, "\n\n");
@@ -208,48 +200,77 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
                 error: "No readable content was found in the PDF"
             })
         }
-
-
-        const chunksize = 500;
-        const overlap = 100;
-        function createChunks(text) {
-            const chunkarr = [];
-            let start = 0;
-            while (start < text.length) {
-                const end = start + chunksize;
-                const chunk = text.slice(start, end);
-                chunkarr.push(chunk);
-                const step = chunksize - overlap;
-                start += step;
-            }
-            return chunkarr;
-        }
         const chunks = createChunks(cleanedText);
 
         console.log("Total Chunks : ", chunks.length);
-        // console.log("First Chunk : ",chunks[0]);
-        // console.log("Second Chunk : ",chunks[1]);
-        // console.log("Third Chunk : ",chunks[3]);
-
         console.log("first chunk length: ", chunks[0].length);
         console.log("second chunk length: ", chunks[1].length);
         console.log("Overlap verified : ", chunks[0].slice(-100) === chunks[1].slice(0, 100));
-
 
         const embeddings = await generateEmbeddings(chunks);
 
         const storageresults = await storeVectors(chunks, embeddings);
 
+        return res.status(201).json({
+            message: "PDF uploaded successfully",
+            documentId: storageresults.documentId,
+            totalChunks: chunks.length,
+            Embeddings: embeddings.length,
+            totalStoragePoints: storageresults.storedPoints
+        });
+    }
+    catch (error) {
+        console.error("PDF ingestion error: ");
+        return res.status(500).json({
+            error: "PDF Ingestion failed",
+            details: error.message
+        });
+    }
+    finally {
+        if (parser) {
+            await parser.destroy().catch(() => { });
+        }
+        console.timeEnd("PDF Ingestion Time");
+    }
+});
+app.post('/api/ask-pdf', async (req, res) => {
+
+    console.log("Request body:", req.body);
+    console.log("Uploaded file:", req.file);
+
+    const questions = req.body?.question;
+    const documentId = req.body?.documentId;
+
+    console.log("Question:", JSON.stringify(questions));
+    console.log("Is valid string:", typeof questions === 'string' && questions.trim().length > 0);
+    if (typeof questions !== 'string' || !questions.trim()) {
+        return res.status(400).json({
+            error: 'Please provide valid question'
+        });
+    }
+    if (typeof documentId !== 'string' || !documentId.trim()) {
+        return res.status(400).json({
+            error: 'Please provide a valid document Id'
+        });
+    }
+
+    try {
         const queryembeddings = await generateQueryEmbeddings(questions);
 
-        const relevantchunks = await retrieveRelevantQ(queryembeddings, storageresults.documentId);
+        const relevantchunks = await retrieveRelevantQ(queryembeddings, documentId);
 
         console.log("Retrieved chunks:", relevantchunks.length);
+
+        if (relevantchunks.length === 0) {
+            return res.status(404).json({
+                error: "No relevant content found for this document"
+            });
+        }
+
         console.log("Relevant results:", relevantchunks);
         return res.json({
             message: "PDF retrieval successful",
-            documentId: storageresults.documentId,
-            totalChunks: chunks.length,
+            documentId: documentId,
             retrievedChunks: relevantchunks.length,
             results: relevantchunks
         });
@@ -281,11 +302,10 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
             answer: response.output_text
         });
     } catch (error) {
-        console.error("Gemini error:", error);
-        console.error("Error message:", error.message);
+        console.error("PDF retrieval error", error);
 
         return res.status(500).json({
-            error: "Gemini request failed",
+            error: "PDF Retrieval failed",
             details: error.message
         });
     }
@@ -293,7 +313,7 @@ app.post('/api/ask-pdf', upload.single('pdf'), async (req, res) => {
         if (parser) {
             await parser.destroy().catch(() => { });
         }
-        console.timeEnd('Total Processing Time');
+        
     }
 
 })
