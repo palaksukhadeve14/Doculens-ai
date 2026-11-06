@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState} from 'react'
 import Header from './components/Header.jsx'
 import './App.css'
 import PdfUploader from './components/PdfUploader.jsx'
@@ -11,6 +11,11 @@ function App() {
   const [error, seterror] = useState('');
   const [selectedfile,setselectedfile]=useState(null);
 
+
+  const [documentId,setdocumentId]=useState('');
+  const [uploading,setuploading]=useState(false);
+  const [uploadError,setuploadError]=useState('');
+
   function handlequestionchange(event) {
     setquestion(event.target.value)
   }
@@ -18,6 +23,44 @@ function App() {
   function handlefileSelect(file)
   {
     setselectedfile(file);
+    setdocumentId('');
+    setanswer('');
+    seterror('');
+    setuploadError('');
+  }
+  async function handleUpload()
+  {
+    if(!selectedfile)
+    {
+      setuploadError("Please select a PDF first");
+      return;
+    }
+    const formdata=new FormData()
+    formdata.append('pdf',selectedfile);
+     setuploading(true);
+     setdocumentId('');
+     setuploadError('');
+     setanswer('');
+     try{
+      const response=await fetch("http://localhost:3000/api/upload-pdf",{
+        method:'POST',
+        body:formdata
+      });
+      const data=await response.json();
+      if(!response.ok)
+      {
+        throw new Error(data.error || 'PDF upload failed')
+      }
+      setdocumentId(data.documentId)
+      console.log("PDF uploaded Succesfully :",data);
+     }
+     catch(error)
+     {
+      setuploadError(error.message);
+     }
+     finally{
+      setuploading(false);
+     }
   }
 
   async function handleSubmit(event) {
@@ -26,16 +69,12 @@ function App() {
       seterror("Please enter a question");
       return;
     }
-    if(!selectedfile)
+    if(!documentId)
     {
-      seterror("Please select a PDF first");
+      seterror("Please upload and process the PDF first");
       return;
     }
     console.log("Question Submitted: ", question);
-
-    const formdata = new FormData();
-    formdata.append('pdf',selectedfile);
-    formdata.append('question',question.trim());
 
     setloading(true);
     setanswer('');
@@ -45,13 +84,19 @@ function App() {
       const response = await fetch('http://localhost:3000/api/ask-pdf',
         {
           method: 'POST',
-          body: formdata
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            question:question.trim(),
+            documentId:documentId
+          })
         }
       )
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to get and answer");
+        throw new Error(data.details || data.error || "Failed to generate answer");
       }
       setanswer(data.answer || "No answer received")
     } catch (error) {
@@ -69,7 +114,11 @@ function App() {
         <div className="mt-8 grid w-full grid-cols-1 gap-6">
 
          <PdfUploader selectedfile={selectedfile} 
-         onfileSelect={handlefileSelect} />
+         onfileSelect={handlefileSelect}
+         onUpload={handleUpload}
+         uploading={uploading}
+         documentId={documentId}
+         uploadError={uploadError} />
 
         <ChatPanel 
         question={question}
@@ -78,6 +127,7 @@ function App() {
         loading={loading}
         answer={answer}
         error={error}
+        documentReady={!!documentId}
         />
       </div>
     </div>
