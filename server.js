@@ -24,7 +24,7 @@ async function initializeQdrant() {
         collection => collection.name === collectionName
     );
     if (collectionExists) {
-        console.log("Qdrant Collection created successfully")
+        console.log("Qdrant Collection already exists")
         return;
     }
     await qdrantClient.createCollection(collectionName, {
@@ -72,7 +72,7 @@ app.post('/api/ask', async (req, res) => {
     }
     try {
         const response = await ai.interactions.create({
-            model: 'gemini-3.8-flash',
+            model: 'gemini-3.5-flash-lite',
             input: questions
         });
         res.json({
@@ -268,18 +268,19 @@ app.post('/api/ask-pdf', async (req, res) => {
         }
 
         console.log("Relevant results:", relevantchunks);
-        return res.json({
-            message: "PDF retrieval successful",
-            documentId: documentId,
-            retrievedChunks: relevantchunks.length,
-            results: relevantchunks
-        });
+        // return res.json({
+        //     message: "PDF retrieval successful",
+        //     documentId: documentId,
+        //     retrievedChunks: relevantchunks.length,
+        //     results: relevantchunks
+        // });
 
+        const context = relevantchunks.map(chunk => chunk.text).join("\n\n");
         const prompt = `
-        Use the PDF content provided below to answer the user's question.
-        Treat the PDF as the reference source.
+        You are doculens-ai assistant who answers the user questions bases on the provided PDF Document.
+        Answer the user's question only using the provided content.
         If the answer is not available in the PDF, clearly tell the user that the answer is not available in the PDF.
-        PDF content :${cleanedText}
+        PDF content :${context}
         User's question:${questions}`;
 
         console.log("Sending the prompt to gemini...");
@@ -287,33 +288,27 @@ app.post('/api/ask-pdf', async (req, res) => {
         let response;
         try {
             response = await ai.interactions.create({
-                model: 'gemini-3.8-flash',
+                model: 'gemini-3.5-flash-lite',
                 input: prompt
             })
         } finally {
             console.timeEnd('Gemini Response');
         }
-        console.log("Gemini received the prompt..");
-
-        console.log("Answer:", response.output_text);
-
+        console.log("Gemini API call completed");
+        console.log("Full Gemini response:", JSON.stringify(response, null, 2));
+        console.log("Response keys:", Object.keys(response || {}));
+        console.log("Output text:", response?.output_text);
         res.json({
-            question: questions,
-            answer: response.output_text
-        });
+    question: questions,
+    answer: response.output_text
+});
     } catch (error) {
-        console.error("PDF retrieval error", error);
+        console.error("PDF question answering error", error);
 
         return res.status(500).json({
-            error: "PDF Retrieval failed",
+            error: "PDF question answering failed",
             details: error.message
         });
-    }
-    finally {
-        if (parser) {
-            await parser.destroy().catch(() => { });
-        }
-        
     }
 
 })
