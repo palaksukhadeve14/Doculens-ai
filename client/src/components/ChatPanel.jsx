@@ -3,7 +3,7 @@ function ChatPanel({
   question, onQuestionChange, onSubmit, loading, answer, error, documentReady
 }) {
   return (
-    <section className='min-w-0 rounded-xl bg-white p-5 shadow-sm'>
+    <section className='min-w-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg'>
       <h2 className='mb-4 text-xl font-semibold'>Ask AI</h2>
       {!documentReady && (
         <p className="mb-3 text-sm text-gray-500">Upload and process a PDF first</p>

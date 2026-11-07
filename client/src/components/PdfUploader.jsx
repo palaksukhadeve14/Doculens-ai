@@ -37,7 +37,7 @@ import { useState,useEffect } from "react";
     onfileSelect(file);
   }
     return(
-         <section className='min-w-0 rounded-xl w-full  bg-white p-5 shadow-sm'>
+         <section className='min-w-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg'>
           <h2 className='mb-4 text-xl font-semibold'>PDF Document</h2>
 
           <label
