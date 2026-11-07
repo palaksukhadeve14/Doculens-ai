@@ -107,20 +107,19 @@ function App() {
   }
   return (
 
-    <div className='min-h-screen bg-gray-100 p-4 md:p-8'>
-      <div className='mx-auto max-w-8xl'>
+    <div className='app-background p-4 text-white md:p-6'>
+      <div className='blue-sphere' />
+      <div className='relative z-10 mx-auto max-w-[1800px]'>
         <Header />
 
-        <div className="mt-8 grid w-full grid-cols-1 gap-6">
+        <main className="mt-6 grid  grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1.4fr_1fr]">
 
-         <PdfUploader selectedfile={selectedfile} 
-         onfileSelect={handlefileSelect}
-         onUpload={handleUpload}
-         uploading={uploading}
-         documentId={documentId}
-         uploadError={uploadError} />
+<aside>
+<h4>User history</h4>
+</aside>
+        
 
-        <ChatPanel 
+   <ChatPanel 
         question={question}
         onQuestionChange={handlequestionchange}
         onSubmit={handleSubmit}
@@ -129,7 +128,14 @@ function App() {
         error={error}
         documentReady={!!documentId}
         />
-      </div>
+ <PdfUploader selectedfile={selectedfile} 
+         onfileSelect={handlefileSelect}
+         onUpload={handleUpload}
+         uploading={uploading}
+         documentId={documentId}
+         uploadError={uploadError} />
+       
+      </main>
     </div>
     </div >
   )
