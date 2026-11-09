@@ -1,4 +1,6 @@
 require('dotenv').config();
+const connectDB = require('./config/db');
+const authRoutes=require('./routes/authRoutes');
 const cors = require("cors");
 const express = require('express');
 const multer = require('multer');
@@ -6,6 +8,9 @@ const { QdrantClient } = require("@qdrant/js-client-rest");
 const crypto = require('node:crypto');
 const { PDFParse } = require('pdf-parse')
 const { GoogleGenAI } = require('@google/genai');
+const session=require('express-session');
+const connectMongo=require('connect-mongo');
+const MongoStore = connectMongo.default || connectMongo;
 const app = express();
 const port = 3000;
 
@@ -37,6 +42,23 @@ async function initializeQdrant() {
 
 app.use(express.json());
 app.use(cors({ origin: "http://localhost:5173" }));
+app.use(session({
+    secret:process.env.SESSION_SECRET,
+    resave:false,
+    resave:false,
+    saveUninitialized:false,
+    store:MongoStore.create({
+        mongoUrl:process.env.MONGODB_URI,
+        collectionName:'sessions',
+        ttl:12*14*60*60
+    }),
+    cookie:{
+        httpOnly:true,
+        secure:false,
+        sameSite:'lax'
+    }
+}))
+app.use('/api/auth',authRoutes);
 
 //receive one pdf in memory with 10MB size limit
 const upload = multer({
@@ -313,7 +335,11 @@ app.post('/api/ask-pdf', async (req, res) => {
 
 })
 
-initializeQdrant().then(() => {
+connectDB()
+.then(()=>{
+    return initializeQdrant();
+})
+.then(() => {
     app.listen(port, () => {
         console.log(`Example app listening on port ${port}`);
     });
