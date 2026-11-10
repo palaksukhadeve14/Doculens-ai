@@ -10,6 +10,7 @@ const { PDFParse } = require('pdf-parse')
 const { GoogleGenAI } = require('@google/genai');
 const session=require('express-session');
 const connectMongo=require('connect-mongo');
+const authMiddleware = require('./middleware/authMiddleware');
 const MongoStore = connectMongo.default || connectMongo;
 const app = express();
 const port = 3000;
@@ -41,7 +42,9 @@ async function initializeQdrant() {
 }
 
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: "http://localhost:5173",
+    credentials:true
+ }));
 app.use(session({
     secret:process.env.SESSION_SECRET,
     resave:false,
@@ -139,7 +142,7 @@ async function generateEmbeddings(chunks) {
     );
     return embeddings;
 }
-async function storeVectors(chunks, embeddings) {
+async function storeVectors(chunks, embeddings,userId) {
     const collectionName = 'pdf_chunks';
     const documentId = crypto.randomUUID();
     const points = chunks.map((chunk, index) => ({
@@ -148,6 +151,7 @@ async function storeVectors(chunks, embeddings) {
         payload: {
             text: chunk,
             documentId: documentId,
+            userId:userId,
             index: index
         }
     }));
@@ -170,7 +174,7 @@ async function generateQueryEmbeddings(question) {
     });
     return response.embeddings[0].values;
 }
-async function retrieveRelevantQ(queryembeddings, documentId) {
+async function retrieveRelevantQ(queryembeddings, documentId,userId) {
     const collectionName = 'pdf_chunks';
     const results = await qdrantClient.query(collectionName, {
         query: queryembeddings,
@@ -183,6 +187,12 @@ async function retrieveRelevantQ(queryembeddings, documentId) {
                     match: {
                         value: documentId
                     }
+                },
+                {
+                    key:'userId',
+                    match:{
+                        value:userId
+                    }
                 }
             ]
         }
@@ -193,7 +203,7 @@ async function retrieveRelevantQ(queryembeddings, documentId) {
         chunkIndex: result.payload.index
     }));
 }
-app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
+app.post('/api/upload-pdf',authMiddleware,upload.single('pdf'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({
             error: 'Please provide a valid PDF file'
@@ -231,7 +241,7 @@ app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
 
         const embeddings = await generateEmbeddings(chunks);
 
-        const storageresults = await storeVectors(chunks, embeddings);
+        const storageresults = await storeVectors(chunks, embeddings,req.user._id.toString());
 
         return res.status(201).json({
             message: "PDF uploaded successfully",
@@ -255,7 +265,7 @@ app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
         console.timeEnd("PDF Ingestion Time");
     }
 });
-app.post('/api/ask-pdf', async (req, res) => {
+app.post('/api/ask-pdf',authMiddleware,async (req, res) => {
 
     console.log("Request body:", req.body);
     console.log("Uploaded file:", req.file);
@@ -279,7 +289,7 @@ app.post('/api/ask-pdf', async (req, res) => {
     try {
         const queryembeddings = await generateQueryEmbeddings(questions);
 
-        const relevantchunks = await retrieveRelevantQ(queryembeddings, documentId);
+        const relevantchunks = await retrieveRelevantQ(queryembeddings, documentId,req.user._id.toString());
 
         console.log("Retrieved chunks:", relevantchunks.length);
 
