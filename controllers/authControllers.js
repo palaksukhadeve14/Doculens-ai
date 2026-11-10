@@ -106,4 +106,13 @@ const login = async (req, res) => {
         });
     }
 };
-module.exports = {register,login};
+const getMe=(req,res)=>{
+    return res.status(200).json({
+    user:{
+        id:req.user._id,
+        name:req.user.name,
+        email:req.user.email
+    }
+    });
+}
+module.exports = {register,login,getMe};
