@@ -115,4 +115,25 @@ const getMe=(req,res)=>{
     }
     });
 }
-module.exports = {register,login,getMe};
+const logout=(req,res)=>{
+    req.session.destroy((error)=>{
+        if(error)
+        {
+            console.error("logout error : ",error.message);
+
+            return res.status(500).json({
+                message:"Could not logout"
+            });
+        }
+    });
+    res.clearCookie('connect.sid',{
+            httpOnly:true,
+            secure:false,
+            sameSite:"lax",
+            path:'/'
+        });
+        return res.status(200).json({
+            message:"Logout successfully"
+        });
+}
+module.exports = {register,login,getMe,logout};
