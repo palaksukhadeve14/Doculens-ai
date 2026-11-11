@@ -107,6 +107,7 @@ const login = async (req, res) => {
     }
 };
 const getMe=(req,res)=>{
+    res.set('Cache-Control','no-store');
     return res.status(200).json({
     user:{
         id:req.user._id,
