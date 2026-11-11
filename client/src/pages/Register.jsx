@@ -1,16 +1,50 @@
 import { useState } from "react"
-import { Link } from "react-router-dom";
+import { Link,useNavigate } from "react-router-dom";
 
-function Register() {
+ function Register() {
+
     const [name, setname] = useState('');
     const [email, setemail] = useState('');
     const [password, setpassword] = useState('');
-    const handleSubmit = (event) => {
-        event.preventDefault();
+    const [loading,setloading]=useState(false);
+    const [error,seterror]=useState('');
+    const [success,setsuccess]=useState('');
 
-        //backend registration integration comes next
-        console.log({ name, email, password });
+     const navigate=useNavigate();
+
+     const handleSubmit = async (event) => {
+        event.preventDefault();
+       
+        setloading(true);
+        seterror('');
+        try{
+        const response = await fetch('http://localhost:3000/api/auth/register',{
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json'
+            },
+            body:JSON.stringify({
+                name,
+                email,
+                password
+            })
+        }); 
+        const data = await response.json();
+        if(!response.ok)
+        {
+            throw new Error(data.message || 'Registration failed');
+        }
+        setsuccess(data.message);
+        
+        navigate('/login');
     }
+    catch(error){
+        seterror(error.message);
+    }
+    finally{
+        setloading(false);
+    }
+    };
     return (
         <div className="app-background min-h-screen flex items-center justify-center p-4 text-white">
             <div className="blue-sphere" />
@@ -35,7 +69,7 @@ function Register() {
                         <input
                             type="email"
                             value={email}
-                            onChange={(event) => setEmail(event.target.value)}
+                            onChange={(event) => setemail(event.target.value)}
                             placeholder="Enter your email"
                             required
                             className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none focus:border-blue-500"
@@ -49,15 +83,19 @@ function Register() {
                         <input
                             type="password"
                             value={password}
-                            onChange={(event) => setPassword(event.target.value)}
+                            onChange={(event) => setpassword(event.target.value)}
                             placeholder="Create a password"
                             required
                             minLength={6}
                             className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none focus:border-blue-500"
                         />
                     </div>
+                    {error && (
+                        <p className="text-sm text-red-400">{error}</p>
+                    )}
                 <button type='submit'
-                className="w-full rounded-lg bg-blue-600 py-3 font-medium transition hover:bg-blue-500">Create Account</button>
+                disabled={loading}
+                className="w-full rounded-lg bg-blue-600 py-3 font-medium transition hover:bg-blue-500">{loading?'Creating Account..':'Create Account'}</button>
                 </form>
                 <p className="">Already have an account?{' '}
                     <Link
