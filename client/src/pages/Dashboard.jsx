@@ -6,7 +6,7 @@ import ChatPanel from '../components/ChatPanel.jsx'
 
 function Dashboard() {
   const [question, setquestion] = useState('')
-  const [answer, setanswer] = useState('')
+  const [messages, setMessages] = useState([]);
   const [loading, setloading] = useState(false);
   const [error, seterror] = useState('');
   const [selectedfile,setselectedfile]=useState(null);
@@ -24,7 +24,7 @@ function Dashboard() {
   {
     setselectedfile(file);
     setdocumentId('');
-    setanswer('');
+    setMessages([]);
     seterror('');
     setuploadError('');
   }
@@ -40,7 +40,7 @@ function Dashboard() {
      setuploading(true);
      setdocumentId('');
      setuploadError('');
-     setanswer('');
+     setMessages([])
      try{
       const response=await fetch("http://localhost:3000/api/upload-pdf",{
         method:'POST',
@@ -75,10 +75,20 @@ function Dashboard() {
       seterror("Please upload and process the PDF first");
       return;
     }
+    
     console.log("Question Submitted: ", question);
 
     setloading(true);
-    setanswer('');
+    const currentquestion = question.trim();
+    setMessages(prevMessages=>[
+      ...prevMessages,
+      {
+        id:crypto.randomUUID(),
+        role:'user',
+        content:currentquestion
+      }
+    ]);
+    setquestion('');
     seterror('');
     
     try {
@@ -90,7 +100,7 @@ function Dashboard() {
             'Content-Type':'application/json'
           },
           body:JSON.stringify({
-            question:question.trim(),
+            question:currentquestion,
             documentId:documentId
           })
         }
@@ -100,7 +110,14 @@ function Dashboard() {
       if (!response.ok) {
         throw new Error(data.details || data.error || "Failed to generate answer");
       }
-      setanswer(data.answer || "No answer received")
+     setMessages(prevMessages=>[
+      ...prevMessages,
+      {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.answer || 'No answer received'
+      }
+     ])
     } catch (error) {
       seterror(error.message)
     } finally {
@@ -126,7 +143,7 @@ function Dashboard() {
         onQuestionChange={handlequestionchange}
         onSubmit={handleSubmit}
         loading={loading}
-        answer={answer}
+        messages={messages}
         error={error}
         documentReady={!!documentId}
         />
