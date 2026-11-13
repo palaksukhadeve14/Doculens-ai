@@ -44,6 +44,7 @@ function Dashboard() {
      try{
       const response=await fetch("http://localhost:3000/api/upload-pdf",{
         method:'POST',
+        credentials:'include',
         body:formdata
       });
       const data=await response.json();
@@ -84,6 +85,7 @@ function Dashboard() {
       const response = await fetch('http://localhost:3000/api/ask-pdf',
         {
           method: 'POST',
+          credentials:'include',
           headers:{
             'Content-Type':'application/json'
           },
