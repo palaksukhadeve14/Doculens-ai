@@ -34,3 +34,27 @@
   z-index:0;
   pointer-events: none;
 }
+/* Dark scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #101a2d;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334b70;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4774b5;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334b70 #101a2d;
+}
