@@ -3,10 +3,10 @@ function ChatPanel({
   question, onQuestionChange, onSubmit, loading, messages, error, documentReady
 }) {
   return (
-    <section className='min-w-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg'>
+    <section className='flex flex-col h-full min-h-0 min-w-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg'>
 
       <h2 className='mb-4 text-xl font-semibold'>Ask AI</h2>
-      <div>
+      <div className="flex flex-col overflow-y-auto min-h-0 flex-1">
         {
           messages.map(message => {
             return (
@@ -22,6 +22,7 @@ function ChatPanel({
           })
         }
       </div>
+      <div className="shrink-0">
       {!documentReady && (
         <p className="mb-3 text-sm text-gray-500">Upload and process a PDF first</p>
       )}
@@ -47,6 +48,7 @@ function ChatPanel({
           <p className='mt-1 text-red-600'>{error}</p>
         </div>
       )}
+      </div>
     </section>
   )
 }
