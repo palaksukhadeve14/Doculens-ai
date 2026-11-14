@@ -37,7 +37,7 @@ import { useState,useEffect } from "react";
     onfileSelect(file);
   }
     return(
-         <section className='min-w-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg'>
+         <section className='flex flex-col overflow-hidden min-w-0 min-h-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg lg:h-full'>
           <h2 className='mb-4 text-xl font-semibold'>PDF Document</h2>
 
           <label
@@ -81,7 +81,7 @@ import { useState,useEffect } from "react";
           }
           
             {selectedfile && pdfURL && (
-              <div className='mt-5 h-150 w-full overflow-hidden rounded-lg border border-gray-300'>
+              <div className="mt-5 min-h-0 flex-1 overflow-hidden rounded-lg border border-gray-300">
                 <iframe 
                 src={pdfURL}
                 title='pdf-preview'
