@@ -126,12 +126,12 @@ function Dashboard() {
   }
   return (
 
-    <div className='app-background p-4 text-white md:p-6'>
+    <div className='app-background p-4 text-white md:p-6 lg:h-screen lg:overflow-hidden'>
       <div className='blue-sphere' />
-      <div className='relative z-10 mx-auto max-w-[1800px]'>
+      <div className='relative z-10 mx-auto max-w-[1800px] lg:flex lg:h-full lg:flex-col'>
         <Header />
 
-        <main className="mt-6 grid  grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1.4fr_1fr]">
+        <main className="mt-3 grid  grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1.4fr_1fr] lg:min-h-0 lg:flex-1 lg:grid-rows-1">
 
 <aside>
 <h4>User history</h4>
