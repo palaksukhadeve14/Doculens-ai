@@ -1,12 +1,25 @@
+import { useRef,useEffect } from "react"
 
 function ChatPanel({
   question, onQuestionChange, onSubmit, loading, messages, error, documentReady
-}) {
+})
+
+ {
+  const chatContainerRef = useRef(null);
+  useEffect(()=>{
+    const container = chatContainerRef.current;
+    if(container)
+    {
+      container.scrollTop=container.scrollHeight;
+    }
+  },[messages]);
   return (
     <section className='flex flex-col h-full min-h-0 min-w-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg'>
 
       <h2 className='mb-4 text-xl font-semibold'>Ask AI</h2>
-      <div className="flex flex-col overflow-y-auto min-h-0 flex-1">
+      <div
+      ref={chatContainerRef}
+       className="flex flex-col overflow-y-auto min-h-0 flex-1">
         {
           messages.map(message => {
             return (
