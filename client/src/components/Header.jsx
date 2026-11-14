@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"
 import { useState } from "react";
 
-function Header() {
+function Header({onNewChat,busy}) {
     const { setuser } = useAuth();
     const [error, seterror] = useState('')
     const navigate = useNavigate();
@@ -26,7 +26,11 @@ function Header() {
     }
     return (
         <header className="mb-2 shrink-0">
-            <div className="flex justify-end mb-2">
+            <div className="flex justify-end mb-2 gap-2">
+                <button
+                    className="border border-slate-600 rounded-lg px-4 py-2 text-white bg-slate-900/60 text-sm font-medium text-slate-300 transition-colors hover:bg-blue-500/10 hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    type="button"
+                    onClick={onNewChat} disabled={busy} >New Chat</button>
                 <button
                     className="border border-slate-600 rounded-lg px-4 py-2 text-white bg-slate-900/60 text-sm font-medium text-slate-300 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
                     type="button"
