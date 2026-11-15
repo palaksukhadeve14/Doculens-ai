@@ -1,11 +1,11 @@
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 
-  function PdfUploader({selectedfile,onfileSelect,onUpload,uploading,documentId,uploadError})
-{
-    
+function PdfUploader({ selectedfile, onfileSelect, onUpload, uploading, documentId, uploadError }) {
+
   const [pdfURL, setpdfURL] = useState('');
+  const [fileError, setfileError] = useState('');
 
-   useEffect(() => {
+  useEffect(() => {
     if (!selectedfile) {
       setpdfURL('');
       return;
@@ -24,71 +24,83 @@ import { useState,useEffect } from "react";
     if (!file) {
       return;
     }
-
+    setfileError('');
     const ispdf =
       file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
     if (!ispdf) {
-      alert('Please select a pdf file');
+      setfileError('Please select a vaild PDF')
+      event.target.value = '';
+      onfileSelect(null);
+      return;
+    }
+    const maxsize = 10 * 1024 * 1024;
+    if (file.size > maxsize) {
+      setfileError("PDF must be of size 10 MB or smaller");
       event.target.value = '';
       onfileSelect(null);
       return;
     }
     onfileSelect(file);
   }
-    return(
-         <section className='flex flex-col overflow-hidden min-w-0 min-h-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg lg:h-full'>
-          <h2 className='mb-4 text-xl font-semibold'>PDF Document</h2>
+  return (
+    <section className='flex flex-col overflow-hidden min-w-0 min-h-0 rounded-2xl border border-white/10 bg-[#101A2D]/45  p-5 shadow-lg lg:h-full'>
+      <h2 className='mb-4 text-xl font-semibold'>PDF Document</h2>
 
-          <label
-            htmlFor='pdf-upload'
-            className='mb-2 block font-medium text-gray-700'>
-            Choose a pdf
-          </label>
-          <input
-            id='pdf-upload'
-            type='file'
-            accept=".pdf,application/pdf"
-            onChange={handlefileselection}
-            className='block w-full text-sm text-gray-600' />
+      <label
+        htmlFor='pdf-upload'
+        className='mb-2 block font-medium text-gray-700'>
+        Choose a pdf
+      </label>
+      <input
+        id='pdf-upload'
+        type='file'
+        accept=".pdf,application/pdf"
+        onChange={handlefileselection}
+        className='block w-full text-sm text-gray-600' />
 
-          {selectedfile && (
-            <p className='mt-2 wrap-break-words text-sm text-gray-600'>Selected file : {selectedfile.name}</p>
-          )} 
-          {selectedfile && (
-            <button 
-            type="button"
-            onClick={onUpload}
-            disabled={uploading || !!documentId}
-            className="mt-4 rounded-3xl bg-blue-600 px-5 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-              {uploading
-              ?'Processing PDF...'
-            :documentId
-            ?'PDF Uploaded':'Upload PDF'}
-            </button>
-          )}
-          {documentId && (
-            <p className="text-sm text-green-700 mt-3">
-              PDF uploaded and processed successfully
-            </p>
-          )}
-          {
-            uploadError && (
-              <p className='mt-3 text-sm text-red-600'>
-                {uploadError}
-              </p>
-            )
-          }
-          
-            {selectedfile && pdfURL && (
-              <div className="mt-5 min-h-0 flex-1 overflow-hidden rounded-lg border border-gray-300">
-                <iframe 
-                src={pdfURL}
-                title='pdf-preview'
-                className='h-full w-full' />
-          </div>
-            )}
-        </section>
-    )
+      {selectedfile && (
+        <p className='mt-2 wrap-break-words text-sm text-gray-600'>Selected file : {selectedfile.name}</p>
+      )}
+      {selectedfile && (
+        <button
+          type="button"
+          onClick={() => {
+            console.log("Upload button clicked");
+            onUpload();
+          }}
+          disabled={uploading || !!documentId}
+          className="mt-4 rounded-3xl bg-blue-600 px-5 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+          {uploading
+            ? 'Processing PDF...'
+            : documentId
+              ? 'PDF Uploaded' : 'Upload PDF'}
+        </button>
+      )}
+      {documentId && (
+        <p className="text-sm text-green-700 mt-3">
+          PDF uploaded and processed successfully
+        </p>
+      )}
+      {fileError && (
+        <p className="mt-3 text-lg text-red-600">{fileError}</p>)}
+      {
+        uploadError && (
+          <p className='mt-3 text-sm text-red-600'>
+            {uploadError}
+          </p>
+        )
+      }
+
+      {selectedfile && pdfURL && (
+        <div className="mt-5 min-h-0 flex-1 overflow-hidden rounded-lg border border-gray-300">
+          <iframe
+            src={pdfURL}
+            title='pdf-preview'
+            className='h-full w-full' />
+        </div>
+      )}
+    </section>
+  )
 }
 export default PdfUploader

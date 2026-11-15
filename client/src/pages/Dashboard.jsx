@@ -52,6 +52,7 @@ function Dashboard() {
      setuploadError('');
      setMessages([])
      try{
+      console.log("Starting PDF upload...");
       const response=await fetch("http://localhost:3000/api/upload-pdf",{
         method:'POST',
         credentials:'include',
@@ -60,7 +61,7 @@ function Dashboard() {
       const data=await response.json();
       if(!response.ok)
       {
-        throw new Error(data.error || 'PDF upload failed')
+        throw new Error(data.error ||data.message|| 'PDF upload failed')
       }
       setdocumentId(data.documentId)
       console.log("PDF uploaded Succesfully :",data);

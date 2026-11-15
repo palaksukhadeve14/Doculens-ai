@@ -1,6 +1,6 @@
 require('dotenv').config();
 const connectDB = require('./config/db');
-const authRoutes=require('./routes/authRoutes');
+const authRoutes = require('./routes/authRoutes');
 const cors = require("cors");
 const express = require('express');
 const multer = require('multer');
@@ -8,8 +8,8 @@ const { QdrantClient } = require("@qdrant/js-client-rest");
 const crypto = require('node:crypto');
 const { PDFParse } = require('pdf-parse')
 const { GoogleGenAI } = require('@google/genai');
-const session=require('express-session');
-const connectMongo=require('connect-mongo');
+const session = require('express-session');
+const connectMongo = require('connect-mongo');
 const authMiddleware = require('./middleware/authMiddleware');
 const MongoStore = connectMongo.default || connectMongo;
 const app = express();
@@ -42,26 +42,27 @@ async function initializeQdrant() {
 }
 
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:5173",
-    credentials:true
- }));
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true
+}));
 app.use(session({
-    secret:process.env.SESSION_SECRET,
-    resave:false,
-    resave:false,
-    saveUninitialized:false,
-    store:MongoStore.create({
-        mongoUrl:process.env.MONGODB_URI,
-        collectionName:'sessions',
-        ttl:12*14*60*60
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        collectionName: 'sessions',
+        ttl: 12 * 14 * 60 * 60
     }),
-    cookie:{
-        httpOnly:true,
-        secure:false,
-        sameSite:'lax'
+    cookie: {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax'
     }
 }))
-app.use('/api/auth',authRoutes);
+app.use('/api/auth', authRoutes);
 
 //receive one pdf in memory with 10MB size limit
 const upload = multer({
@@ -74,10 +75,23 @@ const upload = multer({
             file.mimetype === 'application/pdf' &&
             file.originalname.toLowerCase().endsWith('.pdf');
 
-        cb(null, ispdf);
-    }
+        if (!ispdf) {
+            const error = new Error('Please select a valid PDF file');
+            error.status = 400;
+            return cb(error);
+        }
 
+        cb(null, true);
+    }
 })
+function handlePdfUpload(req, res, next) {
+    upload.single('pdf')(req, res, (error) => {
+        if (error) {
+            return next(error);
+        }
+        next();
+    })
+}
 
 app.get('/api/hello', (req, res) => {
     res.json({
@@ -142,7 +156,7 @@ async function generateEmbeddings(chunks) {
     );
     return embeddings;
 }
-async function storeVectors(chunks, embeddings,userId) {
+async function storeVectors(chunks, embeddings, userId) {
     const collectionName = 'pdf_chunks';
     const documentId = crypto.randomUUID();
     const points = chunks.map((chunk, index) => ({
@@ -151,7 +165,7 @@ async function storeVectors(chunks, embeddings,userId) {
         payload: {
             text: chunk,
             documentId: documentId,
-            userId:userId,
+            userId: userId,
             index: index
         }
     }));
@@ -174,7 +188,7 @@ async function generateQueryEmbeddings(question) {
     });
     return response.embeddings[0].values;
 }
-async function retrieveRelevantQ(queryembeddings, documentId,userId) {
+async function retrieveRelevantQ(queryembeddings, documentId, userId) {
     const collectionName = 'pdf_chunks';
     const results = await qdrantClient.query(collectionName, {
         query: queryembeddings,
@@ -189,9 +203,9 @@ async function retrieveRelevantQ(queryembeddings, documentId,userId) {
                     }
                 },
                 {
-                    key:'userId',
-                    match:{
-                        value:userId
+                    key: 'userId',
+                    match: {
+                        value: userId
                     }
                 }
             ]
@@ -203,7 +217,7 @@ async function retrieveRelevantQ(queryembeddings, documentId,userId) {
         chunkIndex: result.payload.index
     }));
 }
-app.post('/api/upload-pdf',authMiddleware,upload.single('pdf'), async (req, res) => {
+app.post('/api/upload-pdf', authMiddleware, handlePdfUpload, async (req, res) => {
     if (!req.file) {
         return res.status(400).json({
             error: 'Please provide a valid PDF file'
@@ -236,12 +250,15 @@ app.post('/api/upload-pdf',authMiddleware,upload.single('pdf'), async (req, res)
 
         console.log("Total Chunks : ", chunks.length);
         console.log("first chunk length: ", chunks[0].length);
-        console.log("second chunk length: ", chunks[1].length);
-        console.log("Overlap verified : ", chunks[0].slice(-100) === chunks[1].slice(0, 100));
+        console.log("second chunk length: ", chunks[1]?.length);
+        console.log(
+            "Overlap verified:",
+            chunks.length > 1 && chunks[0].slice(-100) === chunks[1].slice(0, 100)
+        );
 
         const embeddings = await generateEmbeddings(chunks);
 
-        const storageresults = await storeVectors(chunks, embeddings,req.user._id.toString());
+        const storageresults = await storeVectors(chunks, embeddings, req.user._id.toString());
 
         return res.status(201).json({
             message: "PDF uploaded successfully",
@@ -265,7 +282,7 @@ app.post('/api/upload-pdf',authMiddleware,upload.single('pdf'), async (req, res)
         console.timeEnd("PDF Ingestion Time");
     }
 });
-app.post('/api/ask-pdf',authMiddleware,async (req, res) => {
+app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
 
     console.log("Request body:", req.body);
     console.log("Uploaded file:", req.file);
@@ -289,7 +306,7 @@ app.post('/api/ask-pdf',authMiddleware,async (req, res) => {
     try {
         const queryembeddings = await generateQueryEmbeddings(questions);
 
-        const relevantchunks = await retrieveRelevantQ(queryembeddings, documentId,req.user._id.toString());
+        const relevantchunks = await retrieveRelevantQ(queryembeddings, documentId, req.user._id.toString());
 
         console.log("Retrieved chunks:", relevantchunks.length);
 
@@ -331,9 +348,9 @@ app.post('/api/ask-pdf',authMiddleware,async (req, res) => {
         console.log("Response keys:", Object.keys(response || {}));
         console.log("Output text:", response?.output_text);
         res.json({
-    question: questions,
-    answer: response.output_text
-});
+            question: questions,
+            answer: response.output_text
+        });
     } catch (error) {
         console.error("PDF question answering error", error);
 
@@ -345,15 +362,45 @@ app.post('/api/ask-pdf',authMiddleware,async (req, res) => {
 
 })
 
-connectDB()
-.then(()=>{
-    return initializeQdrant();
-})
-.then(() => {
-    app.listen(port, () => {
-        console.log(`Example app listening on port ${port}`);
+app.use((err, req, res, next) => {
+    if (res.headersSent) {
+        return next(err);
+    }
+    console.log("Error name:", err.name);
+    console.log("Error code:", err.code);
+    console.log("Error message:", err.message);
+    console.log("Error status:", err.status);
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({
+                message: "PDF must be 10MB or smaller"
+            });
+        }
+        return res.status(400).json({
+            message: "PDF upload fail.Please check the file and try again"
+        });
+    }
+    if (err.status === 400) {
+        return res.status(400).json({
+            error: err.message
+        });
+    }
+    //unexpected server errors
+    console.error('Unhandled server error', err);
+
+    return res.status(500).json({
+        message: "Something went wrong.Please try again"
     });
 })
+connectDB()
+    .then(() => {
+        return initializeQdrant();
+    })
+    .then(() => {
+        app.listen(port, () => {
+            console.log(`Example app listening on port ${port}`);
+        });
+    })
     .catch(error => {
         console.log("Failed to initialize Qdrant:", error);
         process.exit(1);
