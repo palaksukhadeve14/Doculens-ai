@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link,useNavigate } from "react-router-dom";
+import API_URL from "../../../config/api";
 
  function Register() {
 
@@ -18,7 +19,7 @@ import { Link,useNavigate } from "react-router-dom";
         setloading(true);
         seterror('');
         try{
-        const response = await fetch('http://localhost:3000/api/auth/register',{
+        const response = await fetch(`${API_URL}/api/auth/register`,{
             method:'POST',
             headers:{
                 'Content-Type':'application/json'

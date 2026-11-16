@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link,useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import API_URL from "../../../config/api";
 
 function Login()
 {
@@ -16,7 +17,7 @@ function Login()
         setloading(true);
         seterror('');
        try{
-        const response=await fetch('http://localhost:3000/api/auth/login',{
+        const response=await fetch(`${API_URL}/api/auth/login`,{
             method:'POST',
             headers:{
                 'Content-Type':'application/json'

@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"
 import { useState } from "react";
+import API_URL from "../../../config/api";
 
 function Header({onNewChat,busy}) {
     const { setuser } = useAuth();
@@ -9,7 +10,7 @@ function Header({onNewChat,busy}) {
     const handlelogout = async (event) => {
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/logout', {
+            const response = await fetch(`${API_URL}/api/auth/logout`, {
                 method: 'POST',
                 credentials: 'include'
             })
