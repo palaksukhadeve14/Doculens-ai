@@ -1,61 +1,80 @@
-const User=require("../models/User");
-const bcrypt=require("bcrypt");
+const User = require("../models/User");
+const bcrypt = require("bcrypt");
 
-const register=async (req,res)=>{
-    try{
-    const {name,email,password}=req.body;
+const register = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
 
-    if(!name || !email || !password)
-    {
-        return res.status(400).json({
-            message:"All fields are require"
-        });
-    }
-    const existingUser= await User.findOne({email});
-    if(existingUser)
-    {
-        return res.status(409).json({
-            message:"user already registered"
-        });
-    }
-    const hashedPassword=await bcrypt.hash(password,12);
-    const newUser=await User.create({
-        name,email,password:hashedPassword
-    });
-    return res.status(201).json({
-        message:"User registered Successfully",
-        user:{
-            id:newUser._id,
-            name:newUser.name,
-            email:newUser.email
+        if ( typeof name !== 'string' || typeof email !== 'string' || typeof password !=='string' || !name.trim() || !email.trim() || !password.trim()) {
+            return res.status(400).json({
+                error: "Please provide valid name,email and password"
+            });
         }
-    });
-}
-catch(error)
-{
-    console.error("Registration error : ",error.message);
+        if (password.length < 8) {
+            return res.status(400).json({
+                error: "Password must be atleast 8 characters long"
+            });
+        }
+        const normalizedEmail = email.trim().toLowerCase();
 
-    return res.status(400).json({
-        message:"Server error during registration"
-    });
-}
+        const existingUser = await User.findOne({ email: normalizedEmail });
+        if (existingUser) {
+            return res.status(409).json({
+                error: "user already registered"
+            });
+        }
+        
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const newUser = await User.create({
+            name: name.trim(),
+            email: normalizedEmail,
+            password: hashedPassword
+        });
+        return res.status(201).json({
+            message: "User registered Successfully",
+            user: {
+                id: newUser._id,
+                name: newUser.name,
+                email: newUser.email
+            }
+        });
+    }
+    catch (error) {
+        console.error("Registration error : ", error);
+        if(error.code === 11000)
+        {
+            return res.status(409).json({
+                error:"Email is already registered"
+            });
+        }
+        return res.status(500).json({
+            error: "Server error during registration"
+        });
+    }
 };
 
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        if (!email || !password) {
+        if ( typeof email !=='string' || typeof password !== 'string' || !email.trim() || !password.trim()) {
             return res.status(400).json({
-                message: 'Email and password are required'
+                error: 'Please provide valid email and password'
             });
         }
-
-        const user = await User.findOne({ email }).select('+password');
+        if(password.length<8)
+        {
+            return res.status(400).json({
+                error:"Password length must be 8 characters long"
+            }
+            )
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const user = await User.findOne({ email:normalizedEmail }).select('+password');
 
         if (!user) {
             return res.status(401).json({
-                message: 'Invalid email or password'
+                error: 'Invalid email or password'
             });
         }
 
@@ -63,7 +82,7 @@ const login = async (req, res) => {
 
         if (!isMatch) {
             return res.status(401).json({
-                message: 'Invalid email or password'
+                error: 'Invalid email or password'
             });
         }
 
@@ -72,7 +91,7 @@ const login = async (req, res) => {
                 console.error('Session regeneration error:', error);
 
                 return res.status(500).json({
-                    message: 'Could not create session'
+                    error: 'Could not create session'
                 });
             }
 
@@ -83,7 +102,7 @@ const login = async (req, res) => {
                     console.error('Session save error:', error);
 
                     return res.status(500).json({
-                        message: 'Could not save session'
+                        error: 'Could not save session'
                     });
                 }
 
@@ -102,39 +121,38 @@ const login = async (req, res) => {
         console.error('Login error:', error);
 
         return res.status(500).json({
-            message: 'Server error during login'
+            error: 'Server error during login'
         });
     }
 };
-const getMe=(req,res)=>{
-    res.set('Cache-Control','no-store');
+const getMe = (req, res) => {
+    res.set('Cache-Control', 'no-store');
     return res.status(200).json({
-    user:{
-        id:req.user._id,
-        name:req.user.name,
-        email:req.user.email
-    }
-    });
-}
-const logout=(req,res)=>{
-    req.session.destroy((error)=>{
-        if(error)
-        {
-            console.error("logout error : ",error.message);
-
-            return res.status(500).json({
-                message:"Could not logout"
-            });
+        user: {
+            id: req.user._id,
+            name: req.user.name,
+            email: req.user.email
         }
     });
-    res.clearCookie('connect.sid',{
-            httpOnly:true,
-            secure:false,
-            sameSite:"lax",
-            path:'/'
+}
+const logout = (req, res) => {
+    req.session.destroy((error) => {
+        if (error) {
+            console.error("logout error : ", error.message);
+
+            return res.status(500).json({
+                error: "Could not logout"
+            });
+        }
+        res.clearCookie('connect.sid', {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax",
+            path: '/'
         });
         return res.status(200).json({
-            message:"Logout successfully"
+            message: "Logout successfully"
         });
+    });
 }
-module.exports = {register,login,getMe,logout};
+module.exports = { register, login, getMe, logout };
