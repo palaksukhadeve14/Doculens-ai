@@ -30,10 +30,6 @@ async function initializeQdrant() {
     const collectionName = 'pdf_chunks'
 
     const collections = await qdrantClient.getCollections();
-    console.log(
-        "Qdrant payload schema:",
-        JSON.stringify(collectionInfo.payload_schema, null, 2)
-    );
 
     const collectionExists = collections.collections.some(
         collection => collection.name === collectionName
@@ -58,7 +54,14 @@ async function initializeQdrant() {
         field_name: 'userId',
         field_schema: 'keyword'
     });
-    console.log("Qdrant payload indexes initializes");
+    const collectionInfo = await qdrantClient.getCollection(collectionName);
+
+    console.log(
+        "Qdrant payload schema:",
+        JSON.stringify(collectionInfo.payload_schema, null, 2)
+    );
+
+    console.log("Qdrant payload indexes initialized");
 }
 
 app.use(express.json());
