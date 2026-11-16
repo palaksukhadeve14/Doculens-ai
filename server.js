@@ -13,14 +13,14 @@ const connectMongo = require('connect-mongo');
 const authMiddleware = require('./middleware/authMiddleware');
 const MongoStore = connectMongo.default || connectMongo;
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
 const qdrantClient = new QdrantClient({
-    host: 'localhost',
-    port: 6333
+    url:process.env.QDRANT_URL,
+    apiKey: process.env.QDRANT_API_KEY || undefined
 });
 async function initializeQdrant() {
     const collectionName = 'pdf_chunks'
@@ -43,18 +43,17 @@ async function initializeQdrant() {
 
 app.use(express.json());
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URL,
     credentials: true
 }));
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
         collectionName: 'sessions',
-        ttl: 12 * 14 * 60 * 60
+        ttl: 14 * 24 * 60 * 60
     }),
     cookie: {
         httpOnly: true,
@@ -93,38 +92,6 @@ function handlePdfUpload(req, res, next) {
     })
 }
 
-app.get('/api/hello', (req, res) => {
-    res.json({
-        message: "Hello form my first API",
-        status: "success"
-    });
-});
-
-app.post('/api/ask', async (req, res) => {
-    const questions = req.body?.question;
-    console.log("Req body: ", req.body);
-
-    if (!questions || typeof questions !== "string" || !questions.trim()) {
-        return res.status(400).json({
-            Error: "Please provide valid question"
-        })
-    }
-    try {
-        const response = await ai.interactions.create({
-            model: 'gemini-3.5-flash-lite',
-            input: questions
-        });
-        res.json({
-            question: questions,
-            answer: response.output_text
-        });
-    } catch (error) {
-        console.log("Gemini API error : ", error.message)
-        res.status(500).json({
-            error: 'Failed to generate an AI response'
-        });
-    }
-});
 const chunksize = 500;
 const overlap = 100;
 
@@ -226,20 +193,20 @@ app.post('/api/upload-pdf', authMiddleware, handlePdfUpload, async (req, res) =>
     console.time("PDF Ingestion Time");
     let parser;
     try {
-        console.log("PDF Ingestion Pipeline");
+        // console.log("PDF Ingestion Pipeline");
         parser = new PDFParse({
             data: req.file.buffer
         });
-        console.log("Parser created. Extracting text...");
+        // console.log("Parser created. Extracting text...");
 
         const result = await parser.getText();
 
         const rawText = result.text;
         const cleanedText = rawText.trim().replace(/ {2,}/g, " ").replace(/\n{3,}/g, "\n\n");
 
-        console.log("Raw Text length: ", rawText.length);
-        console.log("Extracted PDF text length:", cleanedText.length);
-        console.log("Extracted PDF text preview:", cleanedText.slice(0, 500));
+        // console.log("Raw Text length: ", rawText.length);
+        // console.log("Extracted PDF text length:", cleanedText.length);
+        // console.log("Extracted PDF text preview:", cleanedText.slice(0, 500));
 
         if (!cleanedText) {
             return res.status(400).json({
@@ -248,13 +215,13 @@ app.post('/api/upload-pdf', authMiddleware, handlePdfUpload, async (req, res) =>
         }
         const chunks = createChunks(cleanedText);
 
-        console.log("Total Chunks : ", chunks.length);
-        console.log("first chunk length: ", chunks[0].length);
-        console.log("second chunk length: ", chunks[1]?.length);
-        console.log(
-            "Overlap verified:",
-            chunks.length > 1 && chunks[0].slice(-100) === chunks[1].slice(0, 100)
-        );
+        // console.log("Total Chunks : ", chunks.length);
+        // console.log("first chunk length: ", chunks[0].length);
+        // console.log("second chunk length: ", chunks[1]?.length);
+        // console.log(
+        //     "Overlap verified:",
+        //     chunks.length > 1 && chunks[0].slice(-100) === chunks[1].slice(0, 100)
+        // );
 
         const embeddings = await generateEmbeddings(chunks);
 
@@ -269,10 +236,9 @@ app.post('/api/upload-pdf', authMiddleware, handlePdfUpload, async (req, res) =>
         });
     }
     catch (error) {
-        console.error("PDF ingestion error: ");
+        console.error("PDF ingestion error: ",error);
         return res.status(500).json({
-            error: "PDF Ingestion failed",
-            details: error.message
+            error: "Failed to process the PDF.Please try again."
         });
     }
     finally {
@@ -284,14 +250,14 @@ app.post('/api/upload-pdf', authMiddleware, handlePdfUpload, async (req, res) =>
 });
 app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
 
-    console.log("Request body:", req.body);
-    console.log("Uploaded file:", req.file);
+    // console.log("Request body:", req.body);
+    // console.log("Uploaded file:", req.file);
 
     const questions = req.body?.question;
     const documentId = req.body?.documentId;
 
-    console.log("Question:", JSON.stringify(questions));
-    console.log("Is valid string:", typeof questions === 'string' && questions.trim().length > 0);
+    // console.log("Question:", JSON.stringify(questions));
+    // console.log("Is valid string:", typeof questions === 'string' && questions.trim().length > 0);
     if (typeof questions !== 'string' || !questions.trim()) {
         return res.status(400).json({
             error: 'Please provide valid question'
@@ -308,7 +274,7 @@ app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
 
         const relevantchunks = await retrieveRelevantQ(queryembeddings, documentId, req.user._id.toString());
 
-        console.log("Retrieved chunks:", relevantchunks.length);
+        // console.log("Retrieved chunks:", relevantchunks.length);
 
         if (relevantchunks.length === 0) {
             return res.status(404).json({
@@ -316,7 +282,7 @@ app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
             });
         }
 
-        console.log("Relevant results:", relevantchunks);
+        // console.log("Relevant results:", relevantchunks);
         // return res.json({
         //     message: "PDF retrieval successful",
         //     documentId: documentId,
@@ -343,10 +309,12 @@ app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
         } finally {
             console.timeEnd('Gemini Response');
         }
-        console.log("Gemini API call completed");
-        console.log("Full Gemini response:", JSON.stringify(response, null, 2));
-        console.log("Response keys:", Object.keys(response || {}));
-        console.log("Output text:", response?.output_text);
+
+        // console.log("Gemini API call completed");
+        // console.log("Full Gemini response:", JSON.stringify(response, null, 2));
+        // console.log("Response keys:", Object.keys(response || {}));
+        // console.log("Output text:", response?.output_text);
+
         res.json({
             question: questions,
             answer: response.output_text
@@ -355,8 +323,8 @@ app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
         console.error("PDF question answering error", error);
 
         return res.status(500).json({
-            error: "PDF question answering failed",
-            details: error.message
+            error: "Failed to generate an answer.Please try again."
+           
         });
     }
 
@@ -366,18 +334,19 @@ app.use((err, req, res, next) => {
     if (res.headersSent) {
         return next(err);
     }
-    console.log("Error name:", err.name);
-    console.log("Error code:", err.code);
-    console.log("Error message:", err.message);
-    console.log("Error status:", err.status);
+    // console.log("Error name:", err.name);
+    // console.log("Error code:", err.code);
+    // console.log("Error message:", err.message);
+    // console.log("Error status:", err.status);
+
     if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(413).json({
-                message: "PDF must be 10MB or smaller"
+                error: "PDF must be 10MB or smaller"
             });
         }
         return res.status(400).json({
-            message: "PDF upload fail.Please check the file and try again"
+            error: "PDF upload fail.Please check the file and try again"
         });
     }
     if (err.status === 400) {
@@ -389,7 +358,7 @@ app.use((err, req, res, next) => {
     console.error('Unhandled server error', err);
 
     return res.status(500).json({
-        message: "Something went wrong.Please try again"
+        error: "Something went wrong.Please try again"
     });
 })
 connectDB()
