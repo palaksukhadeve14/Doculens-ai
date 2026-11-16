@@ -48,7 +48,7 @@ import API_URL from "../../../config/api";
     };
     return (
         <div className="app-background min-h-screen flex items-center justify-center p-4 text-white">
-            <div className="blue-sphere" />
+           
             <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/80 p-8 shadow-2xl">
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold">Doculens<span className="text-blue-400">AI</span></h1>
