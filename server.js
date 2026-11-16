@@ -15,6 +15,11 @@ const MongoStore = connectMongo.default || connectMongo;
 const app = express();
 const port = process.env.PORT || 3000;
 
+if(process.env.NODE_ENV==='production')
+{
+    app.set('trust proxy',1);
+}
+
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
@@ -57,7 +62,7 @@ app.use(session({
     }),
     cookie: {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV==='production',
         sameSite: 'lax'
     }
 }))
