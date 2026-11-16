@@ -4,10 +4,6 @@
     {
       "source": "/api/:path*",
       "destination": "https://doculens-backend-nnzo.onrender.com/api/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/"
     }
   ]
 }
