@@ -34,16 +34,28 @@ async function initializeQdrant() {
     const collectionExists = collections.collections.some(
         collection => collection.name === collectionName
     );
-    if (collectionExists) {
-        console.log("Qdrant Collection already exists")
-        return;
+    if(!collectionExists)
+    {
+        await qdrantClient.createCollection(collectionName,{
+            vectors:{
+                size:3072,
+                distance:'Cosine'
+            }
+        });
+        console.log("Qdrant Collection created");
     }
-    await qdrantClient.createCollection(collectionName, {
-        vectors: {
-            size: 3072,
-            distance: 'Cosine'
-        }
+    else{
+        console.log("Qdrant collection already exists");
+    }
+    await qdrantClient.createPayloadIndex(collectionName,{
+        field_name:'documentId',
+        field_schema:'keyword'
     });
+    await qdrantClient.createPayloadIndex(collectionName,{
+        field_name:'userId',
+        field_schema:'keyword'
+    });
+    console.log("Qdrant payload indexes initializes");
 }
 
 app.use(express.json());
