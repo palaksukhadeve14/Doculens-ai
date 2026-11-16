@@ -25,7 +25,7 @@
 | File Upload | Multer |
 | Deployment | Vercel, Render |
 
-## 🤖 AI Models Used
+##  AI Models Used
 
 | Model | Purpose |
 |---|---|
