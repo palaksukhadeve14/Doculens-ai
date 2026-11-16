@@ -15,45 +15,48 @@ const MongoStore = connectMongo.default || connectMongo;
 const app = express();
 const port = process.env.PORT || 3000;
 
-if(process.env.NODE_ENV==='production')
-{
-    app.set('trust proxy',1);
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
 }
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
 const qdrantClient = new QdrantClient({
-    url:process.env.QDRANT_URL,
+    url: process.env.QDRANT_URL,
     apiKey: process.env.QDRANT_API_KEY || undefined
 });
 async function initializeQdrant() {
     const collectionName = 'pdf_chunks'
 
     const collections = await qdrantClient.getCollections();
+    console.log(
+        "Qdrant payload schema:",
+        JSON.stringify(collectionInfo.payload_schema, null, 2)
+    );
+
     const collectionExists = collections.collections.some(
         collection => collection.name === collectionName
     );
-    if(!collectionExists)
-    {
-        await qdrantClient.createCollection(collectionName,{
-            vectors:{
-                size:3072,
-                distance:'Cosine'
+    if (!collectionExists) {
+        await qdrantClient.createCollection(collectionName, {
+            vectors: {
+                size: 3072,
+                distance: 'Cosine'
             }
         });
         console.log("Qdrant Collection created");
     }
-    else{
+    else {
         console.log("Qdrant collection already exists");
     }
-    await qdrantClient.createPayloadIndex(collectionName,{
-        field_name:'documentId',
-        field_schema:'keyword'
+    await qdrantClient.createPayloadIndex(collectionName, {
+        field_name: 'documentId',
+        field_schema: 'keyword'
     });
-    await qdrantClient.createPayloadIndex(collectionName,{
-        field_name:'userId',
-        field_schema:'keyword'
+    await qdrantClient.createPayloadIndex(collectionName, {
+        field_name: 'userId',
+        field_schema: 'keyword'
     });
     console.log("Qdrant payload indexes initializes");
 }
@@ -74,7 +77,7 @@ app.use(session({
     }),
     cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV==='production',
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax'
     }
 }))
@@ -253,7 +256,7 @@ app.post('/api/upload-pdf', authMiddleware, handlePdfUpload, async (req, res) =>
         });
     }
     catch (error) {
-        console.error("PDF ingestion error: ",error);
+        console.error("PDF ingestion error: ", error);
         return res.status(500).json({
             error: "Failed to process the PDF.Please try again."
         });
@@ -341,7 +344,7 @@ app.post('/api/ask-pdf', authMiddleware, async (req, res) => {
 
         return res.status(500).json({
             error: "Failed to generate an answer.Please try again."
-           
+
         });
     }
 
