@@ -158,7 +158,7 @@ function Dashboard() {
   return (
 
     <div className='app-background p-4 text-white md:p-6 lg:h-screen lg:overflow-hidden'>
-      <div className='blue-sphere' />
+      
       <div className='relative z-10 mx-auto max-w-[1800px] lg:flex lg:h-full lg:flex-col'>
         <Header onNewChat={handleNewChat} busy={loading || uploading} />
 

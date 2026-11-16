@@ -15,25 +15,7 @@
   position: relative;
   overflow:hidden
 }
-.blue-sphere{
-  position:absolute;
-  width:450px;
-  height:450px;
-  border-radius:50%;
-  background:
-  radial-gradient(
-    circle,
-    rgba(147,197,253,0.65),
-    rgba(59, 130, 246, 0.35) 30%,
-    rgba(37,99,235,0.12) 65%,
-    transparent 80%
-  );
-  filter:blur(8px);
-  top:15%;
-  left: 33%;
-  z-index:0;
-  pointer-events: none;
-}
+
 /* Dark scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
